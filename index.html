@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServiceNow Build Agent — Workshop</title>
+
+<!-- Fonts: Plus Jakarta Sans (display/body) + IBM Plex Mono (eyebrows/code).
+     ServiceNow Sans is proprietary and not distributable via CDN, so these
+     stand in as the closest free geometric-sans / mono pairing. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   THEME — ServiceNow Brand Guidelines (2026)
+   Infinite Blue anchors every surface; Wasabi Green
+   is reserved for accents/eyebrows/headline lead-ins —
+   never for body copy or solid backgrounds.
+   =========================================== */
+:root {
+    --ink: #032D42;            /* Infinite Blue — primary */
+    --ink-deep: #021521;       /* darker depth for gradients */
+    --ink-soft: #0a3a52;       /* lighter depth for gradients */
+    --wasabi: #63DF4E;         /* Wasabi Green — accent only */
+    --white: #FFFFFF;
+    --black: #000000;
+    --bright-blue: #52B8FF;    /* gradient use only */
+    --bright-indigo: #7661FF;  /* gradient use only */
+    --bright-purple: #BF71F2;  /* gradient use only */
+
+    --text-body: rgba(255, 255, 255, 0.82);
+    --text-muted: rgba(255, 255, 255, 0.56);
+    --hairline: rgba(255, 255, 255, 0.14);
+    --panel: rgba(255, 255, 255, 0.06);
+    --panel-strong: rgba(255, 255, 255, 0.09);
+
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+
+    --title-size: clamp(2rem, 5.2vw, 4.4rem);
+    --h2-size: clamp(1.5rem, 3.6vw, 2.9rem);
+    --h3-size: clamp(1rem, 2vw, 1.4rem);
+    --lead-size: clamp(1rem, 2.1vw, 1.5rem);
+    --body-size: clamp(0.78rem, 1.35vw, 1.02rem);
+    --small-size: clamp(0.65rem, 1vw, 0.82rem);
+    --eyebrow-size: clamp(0.62rem, 0.95vw, 0.78rem);
+
+    --slide-padding: clamp(1.5rem, 5vw, 5rem);
+    --content-gap: clamp(0.6rem, 2vw, 1.6rem);
+    --element-gap: clamp(0.3rem, 1vw, 0.9rem);
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-normal: 0.32s;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: var(--font-body);
+    background: var(--ink);
+    color: var(--white);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===========================================
+   VIEWPORT FITTING: MANDATORY BASE STYLES
+   (from viewport-base.css, included in full)
+   =========================================== */
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    padding: var(--slide-padding);
+    /* Without an explicit position, this in-flow block paints BELOW any
+       absolutely-positioned, z-indexed sibling (bg-fill/scrim/bg-mesh) per
+       CSS stacking rules — regardless of DOM order. That silently buried
+       every slide's text under its own dark scrim. Lifting it into the
+       same stacking context above the backgrounds (but below the z-index:3
+       brand mark, which never overlaps real content) fixes it everywhere. */
+    position: relative;
+    z-index: 2;
+}
+.card, .container, .content-box {
+    max-width: min(90vw, 1000px);
+    max-height: min(80vh, 700px);
+}
+.feature-list, .bullet-list { gap: clamp(0.4rem, 1vh, 1rem); }
+.feature-list li, .bullet-list li { font-size: var(--body-size); line-height: 1.4; }
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: clamp(0.5rem, 1.5vw, 1rem);
+}
+img, .image-container { max-width: 100%; max-height: min(50vh, 400px); object-fit: contain; }
+
+@media (max-height: 700px) {
+    :root {
+        --slide-padding: clamp(0.75rem, 3vw, 2rem);
+        --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+        --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+        --h2-size: clamp(1rem, 3vw, 1.75rem);
+    }
+}
+@media (max-height: 600px) {
+    :root {
+        --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+        --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+        --title-size: clamp(1.1rem, 4vw, 2rem);
+        --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+    }
+    .nav-dots, .keyboard-hint, .decorative { display: none; }
+}
+@media (max-height: 500px) {
+    :root {
+        --slide-padding: clamp(0.4rem, 2vw, 1rem);
+        --title-size: clamp(1rem, 3.5vw, 1.5rem);
+        --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+        --body-size: clamp(0.65rem, 1vw, 0.85rem);
+    }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+    .grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+    html { scroll-behavior: auto; }
+}
+
+/* ===========================================
+   BACKGROUNDS
+   Photographic backgrounds get a flat scrim only —
+   brand guidelines forbid layering accent glows on
+   top of a full-bleed background image. Gradient-mesh
+   glows are reserved for solid Infinite Blue slides.
+   =========================================== */
+.bg-fill {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+.bg-fill img {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+}
+.scrim-full {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(2,21,33,0.55) 0%, rgba(2,21,33,0.86) 100%);
+    z-index: 1;
+}
+.scrim-left {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, var(--ink-deep) 0%, rgba(2,21,33,0.82) 42%, rgba(2,21,33,0.35) 68%, rgba(2,21,33,0.15) 100%);
+    z-index: 1;
+}
+.bg-mesh {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+        radial-gradient(ellipse 60% 50% at 12% 12%, rgba(191, 113, 242, 0.16) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 45% at 90% 85%, rgba(82, 184, 255, 0.16) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 60% at 100% 0%, rgba(118, 97, 255, 0.14) 0%, transparent 55%),
+        linear-gradient(160deg, var(--ink) 0%, var(--ink-deep) 100%);
+}
+.bg-grid {
+    position: absolute; inset: 0; z-index: 0; opacity: 0.5;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+/* ===========================================
+   TYPOGRAPHY COMPONENTS
+   =========================================== */
+.eyebrow {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: var(--eyebrow-size);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--wasabi);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+}
+.eyebrow::before {
+    content: '';
+    width: 0.5em;
+    height: 0.5em;
+    background: var(--wasabi);
+    border-radius: 1px;
+    transform: rotate(45deg);
+    flex: none;
+}
+h1.title, h2.h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+}
+h1.title { font-size: var(--title-size); }
+h2.h2 { font-size: var(--h2-size); }
+.lead {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: var(--lead-size);
+    color: var(--white);
+    line-height: 1.35;
+    max-width: 46ch;
+}
+.body-text {
+    font-size: var(--body-size);
+    color: var(--text-body);
+    line-height: 1.55;
+    max-width: 56ch;
+}
+.accent { color: var(--wasabi); }
+
+/* ===========================================
+   REVEAL ANIMATION — corporate-clean:
+   short travel, quick settle, gentle stagger
+   =========================================== */
+.reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity var(--duration-normal) var(--ease-out-expo),
+                transform var(--duration-normal) var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.slide.visible .reveal:nth-child(1) { transition-delay: 0.02s; }
+.slide.visible .reveal:nth-child(2) { transition-delay: 0.06s; }
+.slide.visible .reveal:nth-child(3) { transition-delay: 0.10s; }
+.slide.visible .reveal:nth-child(4) { transition-delay: 0.14s; }
+.slide.visible .reveal:nth-child(5) { transition-delay: 0.18s; }
+.slide.visible .reveal:nth-child(6) { transition-delay: 0.22s; }
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-14px) rotate(3deg); }
+}
+@keyframes float-slower {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* ===========================================
+   BRAND MARK — small wordmark, top-left,
+   min clear space respected via padding
+   =========================================== */
+.brand-mark {
+    position: absolute;
+    top: var(--slide-padding);
+    left: var(--slide-padding);
+    z-index: 3;
+    width: clamp(70px, 8vw, 108px);
+    opacity: 0.85;
+}
+.brand-mark img { width: 100%; height: auto; object-fit: contain; max-height: none; }
+
+.page-num {
+    position: absolute;
+    bottom: var(--slide-padding);
+    right: var(--slide-padding);
+    z-index: 3;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+/* ===========================================
+   CARD GRIDS (feature cards)
+   =========================================== */
+.card-grid {
+    display: grid;
+    gap: clamp(0.7rem, 1.6vw, 1.4rem);
+    width: 100%;
+}
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 780px) {
+    .card-grid.cols-3, .card-grid.cols-2 { grid-template-columns: 1fr; }
+}
+.feature-card {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    padding: clamp(0.9rem, 2vw, 1.6rem);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.35rem, 1vh, 0.6rem);
+    backdrop-filter: blur(6px);
+}
+.feature-card .num {
+    font-family: var(--font-mono);
+    color: var(--wasabi);
+    font-size: var(--small-size);
+    letter-spacing: 0.08em;
+}
+.feature-card h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--h3-size);
+    color: var(--white);
+}
+.feature-card p {
+    font-size: var(--body-size);
+    color: var(--text-body);
+    line-height: 1.5;
+}
+.feature-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+    margin-top: 0.2em;
+}
+.feature-card ul li {
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    padding-left: 1.1em;
+    position: relative;
+    line-height: 1.45;
+}
+.feature-card ul li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0.55em;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--wasabi);
+}
+.feature-card .quote {
+    font-style: italic;
+    font-size: var(--small-size);
+    color: var(--bright-blue);
+    border-top: 1px solid var(--hairline);
+    padding-top: 0.5em;
+    margin-top: 0.2em;
+}
+
+/* ===========================================
+   BULLET LIST (welcome slide)
+   =========================================== */
+.value-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.4rem, 1.2vh, 0.7rem); }
+.value-list li {
+    display: flex;
+    gap: 0.7em;
+    align-items: flex-start;
+    font-size: var(--body-size);
+    color: var(--text-body);
+    line-height: 1.5;
+    max-width: 52ch;
+}
+.value-list li .mark {
+    color: var(--wasabi);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex: none;
+}
+
+/* ===========================================
+   SPLIT LAYOUT (welcome slide: text + product shot)
+   =========================================== */
+.split-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1.2rem, 4vw, 3.5rem);
+    width: 100%;
+    max-width: min(96vw, 1480px);
+}
+.split-text { flex: 1 1 40%; min-width: 0; max-width: 68ch; }
+.split-visual {
+    flex: 1 1 58%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6em;
+}
+.split-visual img.screenshot {
+    width: 100%;
+    max-width: 780px;
+    max-height: min(58vh, 560px);
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid var(--hairline);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    background: #0b1f2c;
+}
+.split-visual .caption {
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 42ch;
+}
+@media (max-width: 780px) {
+    .split-row { flex-direction: column; }
+    .split-text, .split-visual { flex: none; max-width: 100%; }
+    .split-visual img.screenshot { max-height: min(28vh, 220px); }
+}
+
+/* ===========================================
+   CHECKLIST (what Build Agent can do)
+   =========================================== */
+.check-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.8rem, 2.6vh, 1.8rem);
+    max-width: min(80vw, 780px);
+}
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.7rem, 1.6vw, 1.2rem);
+}
+.check-item .badge {
+    width: clamp(1.6rem, 2.4vw, 2.2rem);
+    height: clamp(1.6rem, 2.4vw, 2.2rem);
+    border-radius: 50%;
+    background: rgba(99, 223, 78, 0.14);
+    border: 1px solid var(--wasabi);
+    color: var(--wasabi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: clamp(0.8rem, 1.2vw, 1rem);
+    flex: none;
+}
+.check-item p {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: var(--lead-size);
+    color: var(--white);
+    line-height: 1.35;
+}
+/* Compact modifier — for merging a checklist into an already-busy column
+   (e.g. alongside a bullet list) instead of giving it a slide to itself. */
+.check-list.compact { gap: clamp(0.35rem, 1vh, 0.55rem); max-width: none; }
+.check-list.compact .check-item .badge {
+    width: clamp(1.15rem, 1.6vw, 1.4rem);
+    height: clamp(1.15rem, 1.6vw, 1.4rem);
+    font-size: clamp(0.6rem, 0.9vw, 0.75rem);
+}
+.check-list.compact .check-item p {
+    font-size: var(--body-size);
+    font-weight: 400;
+    color: var(--text-body);
+    line-height: 1.4;
+}
+
+/* ===========================================
+   CHIP GRID (capabilities)
+   =========================================== */
+.chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(0.35rem, 0.9vw, 0.6rem);
+    max-width: min(94vw, 1200px);
+}
+.chip {
+    font-family: var(--font-mono);
+    font-size: clamp(0.6rem, 0.95vw, 0.8rem);
+    color: var(--text-body);
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 0.45em 0.9em;
+    white-space: nowrap;
+}
+.chip .dot { color: var(--wasabi); margin-right: 0.4em; }
+
+/* ===========================================
+   CORNER LABEL — a small eyebrow pinned to the top-left
+   corner, independent of a separately-centered heading
+   below it (used on the extensibility slide).
+   =========================================== */
+.corner-label {
+    position: absolute;
+    top: var(--slide-padding);
+    left: var(--slide-padding);
+    z-index: 3;
+}
+
+/* ===========================================
+   EXTENSIBILITY GRID — left-accent cards, two per row
+   with one full-width card, matching a reference layout.
+   =========================================== */
+.ext-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(0.6rem, 1.4vw, 1rem);
+    width: 100%;
+    max-width: min(90vw, 1150px);
+}
+@media (max-width: 780px) {
+    .ext-grid { grid-template-columns: 1fr; }
+    .ext-card.full { grid-column: auto; }
+}
+.ext-card {
+    grid-column: span 1;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--wasabi);
+    border-radius: 10px;
+    padding: clamp(0.65rem, 1.5vw, 1.05rem) clamp(0.85rem, 1.7vw, 1.25rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+}
+.ext-card.full { grid-column: 1 / -1; }
+.ext-card.accent-blue { border-left-color: var(--bright-blue); }
+.ext-card.accent-purple { border-left-color: var(--bright-purple); }
+.ext-card h3 {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(0.6rem, 0.9vw, 0.78rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bright-blue);
+}
+.ext-card p {
+    font-size: var(--body-size);
+    color: var(--text-body);
+    line-height: 1.5;
+}
+.ext-card .chip-grid { margin-top: 0.15em; max-width: none; }
+
+/* ===========================================
+   OBJECT SUPPORT GRID (capabilities, categorized)
+   Six category columns, each with a colored underlined
+   label and a stack of card items; a few items carry a
+   small NEW badge. Colors stay within the brand's approved
+   accent set (Wasabi Green + the three supplementary
+   gradient colors), used here as small emphasis labels —
+   never as body copy or solid fills, per brand guidelines.
+   =========================================== */
+.object-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: clamp(0.8rem, 2vw, 1.5rem);
+    flex-wrap: wrap;
+}
+.count-pill {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(0.68rem, 1.05vw, 0.9rem);
+    color: var(--ink);
+    background: var(--wasabi);
+    padding: 0.5em 1.1em;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex: none;
+}
+.object-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    align-items: start;
+    gap: clamp(0.5rem, 1.3vw, 1.1rem);
+    width: 100%;
+    max-width: min(96vw, 1500px);
+}
+@media (max-width: 900px) {
+    .object-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+    .object-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.object-col {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.28rem, 0.7vh, 0.45rem);
+    min-width: 0;
+}
+.object-col .cat-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(0.6rem, 0.92vw, 0.8rem);
+    padding-bottom: 0.4em;
+    margin-bottom: 0.1em;
+    border-bottom: 2px solid currentColor;
+}
+.object-col.c-green .cat-label { color: var(--wasabi); }
+.object-col.c-blue .cat-label { color: var(--bright-blue); }
+.object-col.c-purple .cat-label { color: var(--bright-purple); }
+.object-card {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    padding: clamp(0.3rem, 0.8vh, 0.5rem) clamp(0.45rem, 0.9vw, 0.65rem);
+    font-size: clamp(0.56rem, 0.88vw, 0.74rem);
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1.25;
+}
+.object-card .new-badge {
+    display: block;
+    width: fit-content;
+    font-family: var(--font-mono);
+    font-size: clamp(0.42rem, 0.6vw, 0.52rem);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    background: var(--wasabi);
+    border-radius: 999px;
+    padding: 0.1em 0.55em;
+    margin-bottom: 0.3em;
+}
+
+/* ===========================================
+   DECORATIVE ICONS
+   =========================================== */
+.decorative { position: absolute; z-index: 1; max-height: none; }
+.decorative.sparkle-cluster { width: clamp(140px, 20vw, 300px); top: 8%; right: 6%; animation: float-slow 7s ease-in-out infinite; }
+.decorative.sparkle-single { width: clamp(60px, 8vw, 120px); animation: float-slower 5.5s ease-in-out infinite; }
+.decorative.molecule { width: clamp(180px, 26vw, 380px); animation: float-slow 9s ease-in-out infinite; }
+
+/* ===========================================
+   TRANSITION / STATEMENT SLIDES
+   =========================================== */
+.stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--content-gap);
+    z-index: 2;
+    padding: var(--slide-padding);
+}
+.stage h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 5.6vw, 4.6rem);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    max-width: 20ch;
+}
+
+/* ===========================================
+   CODE / COMMAND CHIP
+   =========================================== */
+.code-line {
+    font-family: var(--font-mono);
+    font-size: clamp(0.6rem, 1vw, 0.85rem);
+    color: var(--text-body);
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 0.7em 1em;
+    display: inline-block;
+    max-width: 90vw;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.code-line .accent { color: var(--wasabi); }
+
+/* ===========================================
+   SAFE HARBOR (dense legal text, minimal styling)
+   =========================================== */
+.legal-block {
+    max-width: min(76vw, 900px);
+    font-size: clamp(0.6rem, 0.95vw, 0.78rem);
+    color: var(--text-muted);
+    line-height: 1.6;
+    text-align: left;
+}
+
+/* ===========================================
+   AVAILABILITY LINKS FOOTER
+   =========================================== */
+.link-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(0.8rem, 2vw, 2rem);
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+}
+.link-row a { color: var(--bright-blue); text-decoration: none; border-bottom: 1px solid transparent; }
+.link-row a:hover { border-bottom-color: var(--bright-blue); }
+
+/* ===========================================
+   NAVIGATION UI — progress bar, dots, hint
+   =========================================== */
+.progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: var(--wasabi);
+    z-index: 50;
+    width: 0%;
+    transition: width 0.2s var(--ease-out-expo);
+}
+.nav-dots {
+    position: fixed;
+    right: clamp(0.6rem, 1.5vw, 1.4rem);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.nav-dots button {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.28);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.25s, transform 0.25s;
+}
+.nav-dots button.active { background: var(--wasabi); transform: scale(1.5); }
+.keyboard-hint {
+    position: fixed;
+    bottom: 1rem; left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    font-family: var(--font-mono);
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    opacity: 0;
+    animation: hint-fade 8s ease forwards;
+    pointer-events: none;
+}
+@keyframes hint-fade {
+    0% { opacity: 0; }
+    8% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+<div class="keyboard-hint">↑ ↓ · space · swipe to navigate</div>
+
+<!-- ============================================================
+     SLIDE 1 — TITLE
+     ============================================================ -->
+<section class="slide" id="slide-title" aria-label="Title">
+    <div class="bg-fill"><img src="assets/bg-particles.jpg" alt=""></div>
+    <div class="scrim-full"></div>
+    <img class="decorative sparkle-cluster" src="assets/sparkle-cluster.png" alt="">
+    <div class="slide-content" style="z-index:2; justify-content:center;">
+        <p class="eyebrow reveal">Build Agent Workshop</p>
+        <h1 class="title reveal" style="margin-top:0.3em;">ServiceNow<br>Build Agent</h1>
+        <p class="lead reveal" style="margin-top:0.5em; color: var(--wasabi);">Agentic Development Partner</p>
+        <p class="body-text reveal" style="margin-top:1.6em; color: var(--text-muted);">Ashwin Patti — Sr. Staff Software Engineer<br>September 14, 2026</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — SAFE HARBOR
+     ============================================================ -->
+<section class="slide" id="slide-safe-harbor" aria-label="Safe harbor notice">
+    <div class="bg-mesh"></div>
+    <div class="brand-mark reveal"><img src="assets/logo-white.png" alt="ServiceNow"></div>
+    <div class="slide-content" style="align-items:flex-start;">
+        <p class="eyebrow reveal">Forward-Looking Statements</p>
+        <h2 class="h2 reveal" style="margin-top:0.35em; font-size: clamp(1.1rem, 2.4vw, 1.8rem);">Safe harbor notice</h2>
+        <div class="legal-block reveal" style="margin-top:1.1em;">
+            This presentation may contain &ldquo;forward-looking&rdquo; statements that are based on our beliefs and assumptions and on information currently available to us only as of the date of this presentation. Forward-looking statements involve known and unknown risks, uncertainties, and other factors that may cause actual results to differ materially from those expected or implied by the forward-looking statements. Further information on these and other factors that could cause or contribute to such differences include, but are not limited to, those discussed in the section titled &ldquo;Risk Factors,&rdquo; set forth in our most recent Annual Report on Form 10-K and Quarterly Report on Form 10-Q and in our other Securities and Exchange Commission filings. We cannot guarantee that we will achieve the plans, intentions, or expectations disclosed in our forward-looking statements, and you should not place undue reliance on our forward-looking statements. The information on new products, features, or functionality is intended to outline our general product direction and should not be relied upon in making a purchasing decision, is for informational purposes only, and shall not be incorporated into any contract, and is not a commitment, promise, or legal obligation to deliver any material, code, or functionality. The development, release, and timing of any features or functionality described for our products remains at our sole discretion. We undertake no obligation, and do not intend, to update the forward-looking statements.
+        </div>
+    </div>
+    <div class="page-num">02</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — WELCOME TO BUILD AGENT
+     ============================================================ -->
+<section class="slide" id="slide-welcome" aria-label="Welcome to Build Agent">
+    <div class="bg-fill"><img src="assets/bg-particles.jpg" alt=""></div>
+    <div class="scrim-full"></div>
+    <div class="brand-mark reveal"><img src="assets/logo-white.png" alt="ServiceNow"></div>
+    <div class="slide-content" style="justify-content:center;">
+        <div class="split-row">
+            <div class="split-text reveal">
+                <p class="eyebrow">Agentic Development Partner</p>
+                <h2 class="h2" style="margin-top:0.3em;">Welcome to Build Agent</h2>
+                <p class="lead" style="margin-top:0.5em;">Go from idea to a tailored workflow in days, not months.</p>
+                <ul class="value-list" style="margin-top:1.1em;">
+                    <li><span class="mark">→</span> Turn conversations into enterprise-grade apps that automate your business</li>
+                    <li><span class="mark">→</span> Extend ServiceNow with custom workflows built for your unique business processes</li>
+                    <li><span class="mark">→</span> Bring IT and business together to deploy apps faster and where they're needed most</li>
+                    <li><span class="mark">→</span> Eliminate repetitive work so developers focus on what actually moves the business</li>
+                </ul>
+            </div>
+            <div class="split-visual reveal">
+                <img class="screenshot" src="assets/screenshot-build-agent.png" alt="Build Agent chat interface generating the sapdemokudos peer-recognition app, with the Kudos table plan and field summary shown alongside">
+                <p class="caption">Build Agent building &ldquo;sapdemokudos&rdquo; — a peer-recognition app, live</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">03</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — WHY BUILD AGENT?
+     ============================================================ -->
+<section class="slide" id="slide-why" aria-label="Why Build Agent">
+    <div class="bg-fill"><img src="assets/bg-particles.jpg" alt=""></div>
+    <div class="scrim-full"></div>
+    <div class="slide-content">
+        <p class="eyebrow reveal">Addressing Universal Customer Needs</p>
+        <h2 class="h2 reveal" style="margin-top:0.3em;">Why Build Agent?</h2>
+        <div class="card-grid cols-3 reveal" style="margin-top:1.4em;">
+            <div class="feature-card">
+                <span class="num">01</span>
+                <h3>Faster Implementation</h3>
+                <p>Go from opportunity to business outcomes and value realization faster than ever.</p>
+            </div>
+            <div class="feature-card">
+                <span class="num">02</span>
+                <h3>Workflow Personalization</h3>
+                <p>Every customer is different. OOTB workflows get you most of the way there — Build Agent accelerates the home stretch.</p>
+            </div>
+            <div class="feature-card">
+                <span class="num">03</span>
+                <h3>Platform Context</h3>
+                <p>Harness instance awareness and proven ServiceNow objects, so customers adapt and evolve with confidence.</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">04</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — IMAGINE THE POSSIBILITIES (transition)
+     ============================================================ -->
+<section class="slide" id="slide-imagine" aria-label="Imagine the possibilities">
+    <div class="bg-mesh"></div>
+    <img class="decorative molecule reveal" src="assets/molecule.png" alt="" style="width:clamp(90px, 12vw, 170px); top:6%; right:5%;">
+    <div class="slide-content">
+        <p class="eyebrow reveal">Pause &amp; Imagine</p>
+        <h2 class="h2 reveal" style="margin-top:0.3em;">Imagine the possibilities<br><span class="accent">if you could&hellip;</span></h2>
+        <div class="card-grid cols-3 reveal" style="margin-top:1.3em;">
+            <div class="feature-card">
+                <h3>Easily leverage the latest ServiceNow capabilities with built-in best practices</h3>
+                <p>Brainstorm, learn, and iterate to unlock new potential and tap into the latest ServiceNow innovations.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Extend OOTB workflows by thinking about outcomes, not objects</h3>
+                <p>A conversational interface lets more users think about the why instead of the how.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Move faster with rich context and built-in governance</h3>
+                <p>Let the AI handle time-consuming tasks like documentation and test coverage, all in the context of your unique instance.</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">05</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — BUILD AGENT CAPABILITIES (categorized object grid)
+     ============================================================ -->
+<section class="slide" id="slide-capabilities" aria-label="Build Agent capabilities">
+    <div class="bg-mesh"></div>
+    <div class="slide-content">
+        <p class="eyebrow reveal">Fluent Metadata Support &middot; Sep 2026</p>
+        <div class="object-header reveal" style="margin-top:0.3em;">
+            <h2 class="h2" style="font-size: clamp(1.3rem, 3vw, 2.3rem);"><span class="accent">Build Agent</span><br>Expanded object support</h2>
+            <span class="count-pill">50+ Supported Object Types</span>
+        </div>
+        <div class="object-grid reveal" style="margin-top:1.1em;">
+            <div class="object-col c-green">
+                <p class="cat-label">Data &amp; Structure</p>
+                <div class="object-card">Tables &amp; columns</div>
+                <div class="object-card">Relationships</div>
+                <div class="object-card">Records (seed data)</div>
+                <div class="object-card">Data sources &amp; import maps</div>
+                <div class="object-card">Lists</div>
+                <div class="object-card">List controls</div>
+            </div>
+            <div class="object-col c-green">
+                <p class="cat-label">Server-Side Logic</p>
+                <div class="object-card">Business rules</div>
+                <div class="object-card">Script includes</div>
+                <div class="object-card">JS modules</div>
+                <div class="object-card">Assignment rules</div>
+                <div class="object-card">Data policy</div>
+                <div class="object-card">Dictionary override</div>
+            </div>
+            <div class="object-col c-blue">
+                <p class="cat-label">Client Experience</p>
+                <div class="object-card">Client scripts</div>
+                <div class="object-card">Forms</div>
+                <div class="object-card"><span class="new-badge">NEW</span>UI pages (React)</div>
+                <div class="object-card">UI policies</div>
+                <div class="object-card">UI actions</div>
+                <div class="object-card">UI formatters (built-in)</div>
+                <div class="object-card">Views &amp; view rules</div>
+            </div>
+            <div class="object-col c-blue">
+                <p class="cat-label">Security &amp; Config</p>
+                <div class="object-card">Access control lists (ACLs)</div>
+                <div class="object-card">Roles</div>
+                <div class="object-card">Security attributes</div>
+                <div class="object-card">Security data filters</div>
+                <div class="object-card"><span class="new-badge">NEW</span>Cross-scope privileges</div>
+                <div class="object-card">Properties</div>
+                <div class="object-card">Application menus &amp; modules</div>
+            </div>
+            <div class="object-col c-purple">
+                <p class="cat-label">Integration &amp; Comms</p>
+                <div class="object-card">Scripted REST APIs</div>
+                <div class="object-card">Rest Message / HTTP Method</div>
+                <div class="object-card">Connection &amp; Credential alias</div>
+                <div class="object-card">LDAP / external connections</div>
+                <div class="object-card">Email notifications</div>
+                <div class="object-card">Inbound email action</div>
+            </div>
+            <div class="object-col c-purple">
+                <p class="cat-label">Workflow &amp; Quality</p>
+                <div class="object-card"><span class="new-badge">NEW</span>Flows (Workflow Automation)</div>
+                <div class="object-card"><span class="new-badge">NEW</span>Service catalog items</div>
+                <div class="object-card">Variables &amp; variable sets</div>
+                <div class="object-card">ATF tests</div>
+                <div class="object-card"><span class="new-badge">NEW</span>AI Agent</div>
+                <div class="object-card"><span class="new-badge">NEW</span>Now Assist skill</div>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">06</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6b — ADDITIONAL BUILD AGENT CAPABILITIES (extensibility)
+     ============================================================ -->
+<section class="slide" id="slide-extensibility" aria-label="Additional Build Agent capabilities">
+    <div class="bg-mesh"></div>
+    <div class="corner-label"><p class="eyebrow">Extensibility</p></div>
+    <div class="slide-content" style="align-items:center;">
+        <h2 class="h2 reveal" style="text-align:center; font-size: clamp(1.4rem, 3.2vw, 2.6rem);">Additional Build Agent <span class="accent">Capabilities</span></h2>
+        <div class="ext-grid reveal" style="margin-top:1.4em;">
+            <div class="ext-card">
+                <h3>Custom Skills</h3>
+                <p>Package a specific workflow once, then invoke it by name — reusable expertise instead of re-explaining it every time.</p>
+            </div>
+            <div class="ext-card accent-blue">
+                <h3>Custom Rules</h3>
+                <p>Persistent guardrails and conventions your team wants followed on every build, applied automatically.</p>
+            </div>
+            <div class="ext-card accent-purple">
+                <h3>Curated MCP Servers</h3>
+                <p>Connects to a curated set of MCP servers, pulling in extra context and tools beyond the codebase.</p>
+            </div>
+            <div class="ext-card accent-blue">
+                <h3>New Tools</h3>
+                <p>Built-in tools it can now reach for mid-build:</p>
+                <div class="chip-grid">
+                    <span class="chip">webfetch</span>
+                    <span class="chip">websearch</span>
+                    <span class="chip">run script</span>
+                </div>
+            </div>
+            <div class="ext-card full">
+                <h3>File Uploads</h3>
+                <p>Upload a spec doc and Build Agent builds directly from it — or upload a picture of what you want, and it works from that instead.</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">07</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — BUILD AGENT AVAILABILITY
+     ============================================================ -->
+<section class="slide" id="slide-availability" aria-label="Build Agent availability">
+    <div class="bg-mesh"></div>
+    <div class="slide-content">
+        <p class="eyebrow reveal">Multiple Ways To Try &amp; Buy</p>
+        <h2 class="h2 reveal" style="margin-top:0.3em; font-size: clamp(1.3rem, 3vw, 2.3rem);">Build Agent availability</h2>
+        <div class="card-grid cols-2 reveal" style="margin-top:0.9em;">
+            <div class="feature-card">
+                <h3>Personal Developer Instance</h3>
+                <p>Quick, free way to experiment in an isolated environment. Limit: 25 calls/mo.</p>
+                <p class="quote">&ldquo;I want to experiment with the Build Agent&rdquo;</p>
+            </div>
+            <div class="feature-card">
+                <h3>Build Agent (Trial)</h3>
+                <p>Free method to evaluate on-platform and experience instance awareness. Limit: 100 calls/mo.</p>
+                <p class="quote">&ldquo;I want to evaluate if Build Agent is right for my company&rdquo;</p>
+            </div>
+            <div class="feature-card">
+                <h3>ServiceNow Otto for Creator</h3>
+                <p>Standalone offering to edit and extend OOTB ServiceNow apps.</p>
+                <p class="quote">&ldquo;I want to use Build Agent to support my OOTB workflow projects&rdquo;</p>
+            </div>
+            <div class="feature-card">
+                <h3>App Engine Foundation / Prime</h3>
+                <p>Full app development license, plus features supporting development and administration.</p>
+                <p class="quote">&ldquo;I want to build custom apps and take full advantage of the platform&rdquo;</p>
+            </div>
+        </div>
+        <div class="link-row reveal" style="margin-top:1em;">
+            <a href="https://servicenow.seismic.com/Link/Content/DC39jbGQRCGFF8WVdjFV67BXR9qG" target="_blank" rel="noopener">App Engine Pricing &amp; Packaging</a>
+            <a href="https://store.servicenow.com/store/app/0b1eae7ec3a4b690bc9a989f0501316c" target="_blank" rel="noopener">Build Agent (Trial)</a>
+            <a href="https://developer.servicenow.com/" target="_blank" rel="noopener">Developer Site</a>
+        </div>
+    </div>
+    <div class="page-num">08</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — LET'S VIBE WITH BUILD AGENT! (transition)
+     ============================================================ -->
+<section class="slide" id="slide-vibe" aria-label="Let's vibe with Build Agent">
+    <div class="bg-fill"><img src="assets/bg-particles.jpg" alt=""></div>
+    <div class="scrim-full"></div>
+    <img class="decorative sparkle-single reveal" src="assets/sparkle-single.png" alt="" style="top:18%; left:14%;">
+    <img class="decorative sparkle-single reveal" src="assets/sparkle-single.png" alt="" style="bottom:14%; right:16%; animation-delay: -2s;">
+    <div class="stage" style="z-index:2;">
+        <p class="eyebrow reveal">Live Demo</p>
+        <h2 class="reveal">Let's Vibe with<br><span class="accent">Build Agent!</span></h2>
+    </div>
+    <div class="page-num">09</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — BUILD ANYWHERE: SOURCE DRIVEN
+     ============================================================ -->
+<section class="slide" id="slide-build-anywhere" aria-label="Build Anywhere, source driven">
+    <div class="bg-mesh"></div>
+    <div class="brand-mark reveal"><img src="assets/logo-white.png" alt="ServiceNow"></div>
+    <div class="slide-content">
+        <p class="eyebrow reveal">Same App Output As Studio, Built Differently</p>
+        <h2 class="h2 reveal" style="margin-top:0.3em; font-size: clamp(1.3rem, 3vw, 2.3rem);">Build Anywhere — Source driven</h2>
+        <p class="body-text reveal" style="margin-top:0.35em;">Treat your ServiceNow scoped app like real software — with files, version control, and the workflow developers already know.</p>
+        <div class="card-grid cols-3 reveal" style="margin-top:1em;">
+            <div class="feature-card">
+                <h3>Files</h3>
+                <p>App metadata lives in your repo, not just on the instance.</p>
+                <ul>
+                    <li>Source of truth in git</li>
+                    <li>Portable across instances</li>
+                    <li>Reviewable, auditable history</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <h3>Code</h3>
+                <p>Tables, flows, ACLs, and scripts are readable TypeScript.</p>
+                <ul>
+                    <li>Fluent replaces XML</li>
+                    <li>Type-checked, refactor-safe</li>
+                    <li>Familiar to TS/JS devs</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <h3>Workflow</h3>
+                <p>The loop you already run — now on ServiceNow.</p>
+                <ul>
+                    <li>Branches, PRs, diffs</li>
+                    <li>CI/CD and automated tests</li>
+                    <li>AI coding agents in the IDE</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="page-num">10</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — THE STACK AND THE WORKFLOW
+     ============================================================ -->
+<section class="slide" id="slide-stack" aria-label="The stack and the workflow">
+    <div class="bg-mesh"></div>
+    <div class="brand-mark reveal"><img src="assets/logo-white.png" alt="ServiceNow"></div>
+    <div class="slide-content">
+        <p class="eyebrow reveal">PRD &rarr; Prompt &rarr; Build &rarr; Verify &rarr; Commit &rarr; Deploy</p>
+        <h2 class="h2 reveal" style="margin-top:0.3em; font-size: clamp(1.3rem, 3vw, 2.3rem);">The stack and the workflow</h2>
+        <div class="card-grid cols-3 reveal" style="margin-top:0.9em;">
+            <div class="feature-card">
+                <h3>ServiceNow SDK</h3>
+                <p style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--bright-blue);">npm: @servicenow/sdk</p>
+                <ul>
+                    <li>Runs on Node.js 22+, local or in IDE</li>
+                    <li>CLI for build, transform, install</li>
+                    <li>Auto ATF scaffolding + readiness scan</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <h3>AI Coding Agent</h3>
+                <p>Claude Code, Cursor, Codex, Kiro, Windsurf — your choice.</p>
+                <ul>
+                    <li>Turns PRDs into working scoped apps</li>
+                    <li>Grounded prompts reduce iteration</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <h3>AI Skills</h3>
+                <p>Open-source skills repo.</p>
+                <ul>
+                    <li>now-sdk-explain: live SDK docs</li>
+                    <li>now-sdk-setup: env + version checks</li>
+                    <li>Auto-triggers in Fluent projects</li>
+                </ul>
+            </div>
+        </div>
+        <div class="reveal" style="margin-top:1em;">
+            <span class="code-line">npm install -g <span class="accent">@servicenow/sdk@latest</span> &middot; /plugin marketplace add servicenow/sdk &middot; /plugin install fluent</span>
+        </div>
+    </div>
+    <div class="page-num">11</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — ASK US ANYTHING! (transition)
+     ============================================================ -->
+<section class="slide" id="slide-ask" aria-label="Ask Us Anything">
+    <div class="bg-fill"><img src="assets/bg-particles.jpg" alt=""></div>
+    <div class="scrim-full"></div>
+    <img class="decorative sparkle-cluster reveal" src="assets/sparkle-cluster.png" alt="" style="top:auto; bottom:6%; right:4%; opacity:0.85;">
+    <div class="stage" style="z-index:2;">
+        <p class="eyebrow reveal">Q &amp; A</p>
+        <h2 class="reveal">Ask Us<br><span class="accent">Anything!</span></h2>
+    </div>
+    <div class="page-num">12</div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — CLOSING (logo only, per brand guidelines)
+     ============================================================ -->
+<section class="slide" id="slide-closing" aria-label="Closing">
+    <div class="bg-mesh"></div>
+    <div class="slide-content" style="align-items:center; justify-content:center;">
+        <img class="reveal" src="assets/logo-white.png" alt="ServiceNow" style="width:clamp(180px, 26vw, 420px); max-height:none;">
+    </div>
+</section>
+
+<script>
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   Handles reveal-on-scroll, keyboard/touch nav,
+   progress bar, and nav dots.
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.currentIndex = 0;
+        this.buildNavDots();
+        this.setupIntersectionObserver();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+
+        // Reveal whichever slide loads into view immediately (deep link via
+        // #hash, or the title slide on a fresh load) rather than waiting on
+        // the observer's first async callback.
+        const hashTarget = this.slides.findIndex(s => '#' + s.id === window.location.hash);
+        this.reveal(hashTarget >= 0 ? hashTarget : 0);
+    }
+
+    buildNavDots() {
+        const nav = document.getElementById('navDots');
+        this.slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label', slide.getAttribute('aria-label') || ('Slide ' + (i + 1)));
+            btn.addEventListener('click', () => this.goTo(i));
+            nav.appendChild(btn);
+        });
+        this.dots = Array.from(nav.children);
+        this.dots[0].classList.add('active');
+    }
+
+    setupIntersectionObserver() {
+        // Lowered threshold (0.4, not 0.55) so the reveal transition starts
+        // while a snap-scroll is still settling rather than after — by the
+        // time the slide is actually still, the fade-in has already run.
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const idx = this.slides.indexOf(entry.target);
+                if (entry.isIntersecting && entry.intersectionRatio > 0.4) {
+                    this.reveal(idx);
+                }
+            });
+        }, { threshold: [0, 0.4, 1] });
+        this.slides.forEach(s => observer.observe(s));
+    }
+
+    // Marks a slide revealed immediately (idempotent) — called both by the
+    // observer (for native/trackpad scrolling) and eagerly by goTo() (for
+    // keyboard/dot/touch navigation), so text is never caught mid-fade.
+    reveal(idx) {
+        this.slides[idx].classList.add('visible');
+        this.currentIndex = idx;
+        this.dots.forEach(d => d.classList.remove('active'));
+        this.dots[idx].classList.add('active');
+        this.updateProgress();
+    }
+
+    updateProgress() {
+        const pct = this.slides.length > 1 ? (this.currentIndex / (this.slides.length - 1)) * 100 : 0;
+        document.getElementById('progressBar').style.width = pct + '%';
+    }
+
+    goTo(index) {
+        const clamped = Math.max(0, Math.min(this.slides.length - 1, index));
+        this.reveal(clamped);
+        this.slides[clamped].scrollIntoView({ behavior: 'smooth' });
+    }
+
+    setupKeyboardNav() {
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowDown', 'PageDown', ' '].includes(e.key)) {
+                e.preventDefault();
+                this.goTo(this.currentIndex + 1);
+            } else if (['ArrowUp', 'PageUp'].includes(e.key)) {
+                e.preventDefault();
+                this.goTo(this.currentIndex - 1);
+            }
+        });
+    }
+
+    setupTouchNav() {
+        let startY = null;
+        window.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        window.addEventListener('touchend', (e) => {
+            if (startY === null) return;
+            const deltaY = startY - e.changedTouches[0].clientY;
+            if (Math.abs(deltaY) > 50) {
+                this.goTo(this.currentIndex + (deltaY > 0 ? 1 : -1));
+            }
+            startY = null;
+        }, { passive: true });
+    }
+}
+
+new SlidePresentation();
+</script>
+</body>
+</html>
